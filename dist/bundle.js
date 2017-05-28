@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 0);
+/******/ 	return __webpack_require__(__webpack_require__.s = 1);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -73,7 +73,34 @@
 "use strict";
 
 
-console.log('hello there');
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+// thanks pixi (for being douchebag)
+exports.default = window.PIXI;
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _pixi = __webpack_require__(0);
+
+var _pixi2 = _interopRequireDefault(_pixi);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+console.log('start', _pixi2.default);
+
+var renderer = _pixi2.default.CanvasRenderer(512, 512);
+var stage = new _pixi2.default.Container();
+
+renderer.autoResize = true;
+document.body.appendChild(renderer.view);
+
+renderer.render(stage);
 
 /***/ })
 /******/ ]);
