@@ -1,0 +1,26 @@
+{
+  "name": "js-tetris2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vergilius/js-tetris2.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vergilius/js-tetris2/issues"
+  },
+  "homepage": "https://github.com/vergilius/js-tetris2#readme",
+  "devDependencies": {
+    "babel-core": "^6.24.1",
+    "babel-loader": "^7.0.0",
+    "babel-preset-es2015": "^6.24.1",
+    "webpack": "^2.6.1"
+  }
+}
