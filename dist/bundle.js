@@ -94,13 +94,53 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 console.log('start', _pixi2.default);
 
-var renderer = _pixi2.default.CanvasRenderer(512, 512);
-var stage = new _pixi2.default.Container();
+var BLOCK_COLOURS = ['blue', 'cyan', 'green', 'orange', 'purple', 'red', 'yellow'];
+var IMG_PATH = 'dist/img';
+var ASSETS = BLOCK_COLOURS.map(function (colour) {
+  return {
+    name: 'block_' + colour,
+    path: IMG_PATH + '/block_' + colour + '.png'
+  };
+});
 
-renderer.autoResize = true;
-document.body.appendChild(renderer.view);
+var getAsset = function getAsset(name) {
+  return ASSETS.filter(function (asset) {
+    return asset.name === name;
+  })[0];
+};
+var getAssetPath = function getAssetPath(name) {
+  var asset = getAsset(name);
 
-renderer.render(stage);
+  if (asset) {
+    return asset.path;
+  }
+
+  return null;
+};
+
+var setup = function setup() {
+  var renderer = new _pixi2.default.CanvasRenderer(512, 512);
+  var scene = new _pixi2.default.Container();
+
+  console.log(getAsset('block_blue'));
+  console.log(getAssetPath('block_blue'));
+  var testSprite = new _pixi2.default.Sprite(_pixi2.default.loader.resources[getAssetPath('block_blue')].texture);
+
+  scene.addChild(testSprite);
+
+  renderer.autoResize = true;
+  document.body.appendChild(renderer.view);
+
+  renderer.render(scene);
+};
+
+var preloadAssets = function preloadAssets() {
+  _pixi2.default.loader.add(ASSETS.map(function (asset) {
+    return asset.path;
+  })).load(setup);
+};
+
+preloadAssets();
 
 /***/ })
 /******/ ]);

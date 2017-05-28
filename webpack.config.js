@@ -5,6 +5,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const SRC = path.resolve(__dirname, 'src');
 const CSS = path.join(SRC, 'css');
 const JS = path.join(SRC, 'js');
+const IMG = path.join(SRC, 'img');
 const DIST = path.resolve(__dirname, 'dist');
 
 module.exports = {
@@ -23,7 +24,10 @@ module.exports = {
     }]
   },
   plugins: [
-    new CopyWebpackPlugin([{ from: path.join(CSS, 'default.css') } ])
+    new CopyWebpackPlugin([
+      { from: path.join(CSS, 'default.css') },
+      { from: IMG, to: 'img' }
+    ])
   ],
   devtool: 'source-map'
 };
