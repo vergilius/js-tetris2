@@ -1,4 +1,9 @@
 body {
-  background: red;
+  background: #b3c4ff;
   margin: 0;
+}
+
+.container {
+  display: flex;
+  justify-content: center
 }

@@ -1,48 +1,69 @@
 import PIXI from './pixi';
+import Tetris from './tetris';
+import pubsub from './pubsub';
+import {getAssets} from './assets';
+import {getTime} from './time';
 
-console.log('start', PIXI)
+let _Tetris;
+let previous = 0;
 
-const BLOCK_COLOURS = ['blue', 'cyan', 'green', 'orange', 'purple', 'red', 'yellow'];
-const IMG_PATH = 'dist/img';
-const ASSETS = BLOCK_COLOURS.map(colour => ({
-  name: `block_${colour}`,
-  path: `${IMG_PATH}/block_${colour}.png`
-}));
-
-const getAsset = name => ASSETS.filter(asset => asset.name === name)[0];
-const getAssetPath = name => {
-  const asset = getAsset(name);
-
-  if (asset) {
-    return asset.path;
-  }
-
-  return null;
+const KEY_MAP = {
+  37: 'moveLeft',
+  38: 'rotate',
+  39: 'moveRight',
+  40: 'moveDown'
 };
 
+const addChildRecursively = (scene, gameObject) => {
+  if (gameObject.sprite) {
+    scene.addChild(gameObject.sprite);
+  } else if (typeof gameObject.getChildren === 'function') {
+    gameObject.getChildren().forEach(gameObject => addChildRecursively(scene, gameObject));
+  }
+}
+
 const setup = () => {
-  const renderer = new PIXI.CanvasRenderer(512, 512);
+  const renderer = new PIXI.CanvasRenderer(300, 500);
   const scene = new PIXI.Container();
 
-  console.log(getAsset('block_blue'))
-  console.log(getAssetPath('block_blue'))
-  const testSprite = new PIXI.Sprite(
-    PIXI.loader.resources[getAssetPath('block_blue')].texture
-  );
+  window.sc = scene;
 
-  scene.addChild(testSprite);
+  const _Tetris = new Tetris(gameObject => {
+    addChildRecursively(scene, gameObject);
+  });
 
-  renderer.autoResize = true;
-  document.body.appendChild(renderer.view);
+  window.addEventListener('keyup', function (event) {
+    var eventName = KEY_MAP[event.keyCode];
 
-  renderer.render(scene);
+    if (eventName) {
+      console.log(pubsub, eventName);
+      pubsub.trigger(eventName);
+    }
+  });
+
+  document.querySelector('.js-container').appendChild(renderer.view);
+  gameLoop(renderer, scene, _Tetris);
+  setInterval(() => _Tetris.update(), 200);
 };
 
 const preloadAssets = () => {
   PIXI.loader
-    .add(ASSETS.map(asset => asset.path))
+    .add(getAssets().map(asset => asset.path))
     .load(setup);
 };
 
 
 preloadAssets();
+
+function gameLoop(renderer, scene, _Tetris) {
+  // ah, actually I don't use delta time to animate anything :O
+  const time = getTime(previous);
+  const {delta} = time;
+  previous = time.previous;
+
+  requestAnimationFrame(() => gameLoop(renderer, scene, _Tetris));
+
+  if (delta) {
+    renderer.render(scene);
+  }
+}
