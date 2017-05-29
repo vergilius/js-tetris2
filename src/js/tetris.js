@@ -12,6 +12,7 @@ class Tetris {
     this._onElementAdd = onElementAdd;
     this._onElementRemove = onElementRemove;
     this.blocks = {};
+    this.frozenUntilPlaced = false;
 
     this.listen();
     this.setCurrentFigure();
@@ -20,6 +21,7 @@ class Tetris {
     pubsub.on('rotate', () => this.rotateCurrent());
     pubsub.on('moveLeft', () => this.moveCurrent(DIRECTION.LEFT));
     pubsub.on('moveRight', () => this.moveCurrent(DIRECTION.RIGHT));
+    pubsub.on('moveDown', () => this.moveUntilPlaced());
   }
 
   placeAvailableFor (current, nextX, nextY) {
@@ -37,21 +39,32 @@ class Tetris {
 
     return result;
   }
+  
+  moveUntilPlaced() {
+    this.frozenUntilPlaced = true;
+
+    setTimeout(() => {
+      this.moveCurrent(DIRECTION.DOWN);
+
+      if (this.frozenUntilPlaced) {
+        this.moveUntilPlaced();
+      }
+    }, 50);
+  }
 
   placeFigure () {
-    const current = this.getCurrent();
+    const current = this.getCurrentFigure();
 
     current.getBlocks().getItems().forEach(block => this.placeBlock(current, block));
     this._onElementRemove(current);
   }
 
-  getCurrent () {
+  getCurrentFigure () {
     return this.currentFigure;
   }
 
   setCurrentFigure () {
-    const figure = FIGURES[0];
-    // const figure = FIGURES[random(0, FIGURES.length)];
+    const figure = FIGURES[random(0, FIGURES.length)];
     this.currentFigure = new Figure(0, -5, figure.positions, DIRECTION.DOWN, figure.asset);
     this._onElementAdd(this.currentFigure);
   }
@@ -69,6 +82,7 @@ class Tetris {
       this.blocks[x] = {};
     }
 
+    // oh well, this doesn't work in some cases -.-
     if (this.blocks[x][y] && blockFromAbove) {
       this.blocks[x][y].moveDown();
       this.blocks[x][y] = blockFromAbove;
@@ -93,7 +107,7 @@ class Tetris {
   }
 
   rotateCurrent () {
-    const current = this.getCurrent();
+    const current = this.getCurrentFigure();
     const prevRotation = current.direction;
 
     // todo: change to array picking
@@ -101,13 +115,13 @@ class Tetris {
   }
 
   moveCurrent (direction) {
-    const current = this.getCurrent();
+    const current = this.getCurrentFigure();
     let x = 0;
     let y = 1;
 
     if (direction === DIRECTION.RIGHT) {
       x = 1;
-    } else if (direction === DIRECTION.RIGHT) {
+    } else if (direction === DIRECTION.LEFT) {
       x = -1;
     }
 
@@ -120,7 +134,7 @@ class Tetris {
   }
 
   placeCurrent () {
-    const current = this.getCurrent();
+    const current = this.getCurrentFigure();
     current.place = true;
   }
 
@@ -134,12 +148,11 @@ class Tetris {
         if (!this.getBlockFromPosition(x, y)) {
           shouldRemove = false;
         }
-
       }
 
       if (shouldRemove) {
         this.removeLine(y);
-        // recheck same line
+        // recheck the same line
         y = y + 1;
       }
     }
@@ -153,11 +166,18 @@ class Tetris {
     }
   }
 
+  finished() {
+    const current = this.getCurrentFigure()
+    return current.getY() < -5;
+  }
+
   update (delta) {
-    if (!this.moveCurrent(DIRECTION.DOWN)) {
+    if (!this.moveCurrent(DIRECTION.DOWN) && !this.finished()) {
+      this.frozenUntilPlaced = false;
       this.placeFigure();
       this.handleLines();
       this.setCurrentFigure();
+
     }
   }
 }

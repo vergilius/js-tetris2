@@ -157,6 +157,7 @@ var Tetris = function () {
     this._onElementAdd = onElementAdd;
     this._onElementRemove = onElementRemove;
     this.blocks = {};
+    this.frozenUntilPlaced = false;
 
     this.listen();
     this.setCurrentFigure();
@@ -175,6 +176,9 @@ var Tetris = function () {
       });
       _pubsub2.default.on('moveRight', function () {
         return _this.moveCurrent(_config.DIRECTION.RIGHT);
+      });
+      _pubsub2.default.on('moveDown', function () {
+        return _this.moveUntilPlaced();
       });
     }
   }, {
@@ -196,27 +200,41 @@ var Tetris = function () {
       return result;
     }
   }, {
-    key: 'placeFigure',
-    value: function placeFigure() {
+    key: 'moveUntilPlaced',
+    value: function moveUntilPlaced() {
       var _this3 = this;
 
-      var current = this.getCurrent();
+      this.frozenUntilPlaced = true;
+
+      setTimeout(function () {
+        _this3.moveCurrent(_config.DIRECTION.DOWN);
+
+        if (_this3.frozenUntilPlaced) {
+          _this3.moveUntilPlaced();
+        }
+      }, 50);
+    }
+  }, {
+    key: 'placeFigure',
+    value: function placeFigure() {
+      var _this4 = this;
+
+      var current = this.getCurrentFigure();
 
       current.getBlocks().getItems().forEach(function (block) {
-        return _this3.placeBlock(current, block);
+        return _this4.placeBlock(current, block);
       });
       this._onElementRemove(current);
     }
   }, {
-    key: 'getCurrent',
-    value: function getCurrent() {
+    key: 'getCurrentFigure',
+    value: function getCurrentFigure() {
       return this.currentFigure;
     }
   }, {
     key: 'setCurrentFigure',
     value: function setCurrentFigure() {
-      var figure = _config.FIGURES[0];
-      // const figure = FIGURES[random(0, FIGURES.length)];
+      var figure = _config.FIGURES[(0, _utils.random)(0, _config.FIGURES.length)];
       this.currentFigure = new _figure2.default(0, -5, figure.positions, _config.DIRECTION.DOWN, figure.asset);
       this._onElementAdd(this.currentFigure);
     }
@@ -236,6 +254,7 @@ var Tetris = function () {
         this.blocks[x] = {};
       }
 
+      // oh well, this doesn't work in some cases -.-
       if (this.blocks[x][y] && blockFromAbove) {
         this.blocks[x][y].moveDown();
         this.blocks[x][y] = blockFromAbove;
@@ -262,7 +281,7 @@ var Tetris = function () {
   }, {
     key: 'rotateCurrent',
     value: function rotateCurrent() {
-      var current = this.getCurrent();
+      var current = this.getCurrentFigure();
       var prevRotation = current.direction;
 
       // todo: change to array picking
@@ -271,13 +290,13 @@ var Tetris = function () {
   }, {
     key: 'moveCurrent',
     value: function moveCurrent(direction) {
-      var current = this.getCurrent();
+      var current = this.getCurrentFigure();
       var x = 0;
       var y = 1;
 
       if (direction === _config.DIRECTION.RIGHT) {
         x = 1;
-      } else if (direction === _config.DIRECTION.RIGHT) {
+      } else if (direction === _config.DIRECTION.LEFT) {
         x = -1;
       }
 
@@ -291,7 +310,7 @@ var Tetris = function () {
   }, {
     key: 'placeCurrent',
     value: function placeCurrent() {
-      var current = this.getCurrent();
+      var current = this.getCurrentFigure();
       current.place = true;
     }
   }, {
@@ -310,7 +329,7 @@ var Tetris = function () {
 
         if (shouldRemove) {
           this.removeLine(y);
-          // recheck same line
+          // recheck the same line
           y = y + 1;
         }
       }
@@ -325,9 +344,16 @@ var Tetris = function () {
       }
     }
   }, {
+    key: 'finished',
+    value: function finished() {
+      var current = this.getCurrentFigure();
+      return current.getY() < -5;
+    }
+  }, {
     key: 'update',
     value: function update(delta) {
-      if (!this.moveCurrent(_config.DIRECTION.DOWN)) {
+      if (!this.moveCurrent(_config.DIRECTION.DOWN) && !this.finished()) {
+        this.frozenUntilPlaced = false;
         this.placeFigure();
         this.handleLines();
         this.setCurrentFigure();

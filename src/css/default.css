@@ -1,9 +1,15 @@
 body {
-  background: #b3c4ff;
+  background: #434e66;
   margin: 0;
+  padding: 0;
 }
 
 .container {
   display: flex;
-  justify-content: center
+  justify-content: center;
+  padding: 64px;
+}
+
+.container canvas {
+  box-shadow: 0 0 32px 24px black;
 }
