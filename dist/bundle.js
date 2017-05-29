@@ -235,7 +235,7 @@ var Tetris = function () {
     key: 'setCurrentFigure',
     value: function setCurrentFigure() {
       var figure = _config.FIGURES[(0, _utils.random)(0, _config.FIGURES.length)];
-      this.currentFigure = new _figure2.default(0, -5, figure.positions, _config.DIRECTION.DOWN, figure.asset);
+      this.currentFigure = new _figure2.default(5, -5, figure.positions, _config.DIRECTION.DOWN, figure.asset);
       this._onElementAdd(this.currentFigure);
     }
   }, {

@@ -65,7 +65,7 @@ class Tetris {
 
   setCurrentFigure () {
     const figure = FIGURES[random(0, FIGURES.length)];
-    this.currentFigure = new Figure(0, -5, figure.positions, DIRECTION.DOWN, figure.asset);
+    this.currentFigure = new Figure(5, -5, figure.positions, DIRECTION.DOWN, figure.asset);
     this._onElementAdd(this.currentFigure);
   }
 

@@ -11,5 +11,5 @@ body {
 }
 
 .container canvas {
-  box-shadow: 0 0 32px 24px black;
+  border: 24px white solid;
 }
