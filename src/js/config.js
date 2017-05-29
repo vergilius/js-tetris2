@@ -9,8 +9,10 @@ export const DIRECTION = {
 };
 
 export const BLOCK_SIZE = 25;
-export const COURT_WIDTH = 12 * BLOCK_SIZE;
-export const COURT_HEIGHT = 20 * BLOCK_SIZE;
+export const COURT_WIDTH_IN_BLOCKS = 12;
+export const COURT_HEIGHT_IN_BLOCKS = 20;
+export const COURT_WIDTH = COURT_WIDTH_IN_BLOCKS * BLOCK_SIZE;
+export const COURT_HEIGHT = COURT_HEIGHT_IN_BLOCKS * BLOCK_SIZE;
 
 export const FIGURES = [
   { type: 'i', positions: [0x00F0, 0x4444, 0x00F0, 0x4444], asset: 'block_blue' },
@@ -21,3 +23,10 @@ export const FIGURES = [
   { type: 't', positions: [0x0E40, 0x4C40, 0x4E00, 0x4640], asset: 'block_red' },
   { type: 'z', positions: [0x0C60, 0x2640, 0x0C60, 0x2640], asset: 'block_yellow' }
 ];
+
+export const KEY_MAP = {
+  37: 'moveLeft',
+  38: 'rotate',
+  39: 'moveRight',
+  40: 'moveDown'
+};

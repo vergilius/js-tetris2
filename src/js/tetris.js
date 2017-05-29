@@ -1,17 +1,20 @@
-import {DIRECTION, BLOCK_SIZE, COURT_WIDTH, COURT_HEIGHT, FIGURES} from './config';
+import {DIRECTION, BLOCK_SIZE, COURT_WIDTH, COURT_HEIGHT, COURT_WIDTH_IN_BLOCKS, COURT_HEIGHT_IN_BLOCKS, FIGURES} from './config';
 import {random} from './utils';
 import pubsub from './pubsub';
 import Figure from './figure';
+import Block from './block';
 
 class Tetris {
-  constructor(onElementAdd) {
+  constructor({
+    onElementAdd,
+    onElementRemove
+  }) {
     this._onElementAdd = onElementAdd;
-    this.currentPiece = null;
-    this.running = false;
+    this._onElementRemove = onElementRemove;
     this.blocks = {};
 
     this.listen();
-    this.setCurrentPiece();
+    this.setCurrentFigure();
   }
   listen () {
     pubsub.on('rotate', () => this.rotateCurrent());
@@ -19,20 +22,18 @@ class Tetris {
     pubsub.on('moveRight', () => this.moveCurrent(DIRECTION.RIGHT));
   }
 
-  placeAvailableFor (current, x, y) {
+  placeAvailableFor (current, nextX, nextY) {
     let result = true;
 
-    current.checkPosition(x, y, function (x, y) {
+    current.checkPosition(nextX, nextY, (x, y) => {
       const width = x * BLOCK_SIZE;
       const height = y * BLOCK_SIZE;
 
       if (((width < 0) || (width >= COURT_WIDTH) ||
-          (height >= COURT_HEIGHT)) ||
-        !!this.getBlockFromPosition(x, y)) {
-
+          (height >= COURT_HEIGHT)) || !!this.getBlockFromPosition(x, y)) {
         result = false;
       }
-    }.bind(this));
+    });
 
     return result;
   }
@@ -41,14 +42,16 @@ class Tetris {
     const current = this.getCurrent();
 
     current.getBlocks().getItems().forEach(block => this.placeBlock(current, block));
+    this._onElementRemove(current);
   }
 
   getCurrent () {
     return this.currentFigure;
   }
 
-  setCurrentPiece () {
-    const figure = FIGURES[random(0, FIGURES.length)];
+  setCurrentFigure () {
+    const figure = FIGURES[0];
+    // const figure = FIGURES[random(0, FIGURES.length)];
     this.currentFigure = new Figure(0, -5, figure.positions, DIRECTION.DOWN, figure.asset);
     this._onElementAdd(this.currentFigure);
   }
@@ -61,6 +64,20 @@ class Tetris {
     return null;
   }
 
+  moveBlock (x, y, blockFromAbove) {
+    if (!this.blocks[x]) {
+      this.blocks[x] = {};
+    }
+
+    if (this.blocks[x][y] && blockFromAbove) {
+      this.blocks[x][y].moveDown();
+      this.blocks[x][y] = blockFromAbove;
+    } else if (this.blocks[x][y]) {
+      this.blocks[x][y].remove();
+      this.blocks[x][y] = null;
+    }
+  }
+
   placeBlock (figure, block) {
     const x = figure.getX() + block.getX();
     const y = figure.getY() + block.getY();
@@ -69,34 +86,10 @@ class Tetris {
       this.blocks[x] = {};
     }
 
-    this.blocks[x][y] = block;
-  }
+    const newBlock = new Block(x, y, block.getAssetId());
+    this.blocks[x][y] = newBlock;
 
-  getCurrentBlocks () {
-    const current = this.getCurrent();
-    const blocks = [];
-
-    // current.forEachBlock(function (x, y, type) {
-    //   blocks.push(this.createBlock(x, y, type.color));
-    // }.bind(this));
-
-    return current.getBlocks().getItems();
-  }
-
-  getPlacedBlocks () {
-    // const block;
-    // const blocks = [];
-
-    // for (const y = 0; y < COURT_HEIGHT; y++) {
-    //   for (const x = 0; x < COURT_WIDTH; x++) {
-    //     block = this.getBlockFromPosition(x, y);
-    //     if (block) {
-    //       blocks.push(this.createBlock(x, y, block.color));
-    //     }
-    //   }
-    // }
-
-    return this.blocks;
+    this._onElementAdd(newBlock);
   }
 
   rotateCurrent () {
@@ -104,13 +97,7 @@ class Tetris {
     const prevRotation = current.direction;
 
     // todo: change to array picking
-    current.rotate((current.direction === DIRECTION.MAX ? DIRECTION.MIN : current.direction + 1))
-
-    // if (current) {
-    //   if (!this.placeAvailableFor(current, current.x, current.y)) {
-    //     current.rotate(prevRotation);
-    //   }
-    // }
+    current.rotate((current.direction === DIRECTION.MAX ? DIRECTION.MIN : current.direction + 1));
   }
 
   moveCurrent (direction) {
@@ -118,13 +105,10 @@ class Tetris {
     let x = 0;
     let y = 1;
 
-    switch (direction) {
-      case DIRECTION.RIGHT:
-        x = 1;
-        break;
-      case DIRECTION.LEFT:
-        x = -1
-        break;
+    if (direction === DIRECTION.RIGHT) {
+      x = 1;
+    } else if (direction === DIRECTION.RIGHT) {
+      x = -1;
     }
 
     if (this.placeAvailableFor(current, x, y)) {
@@ -141,70 +125,41 @@ class Tetris {
   }
 
   handleLines () {
-    let x;
-    let y;
-    let complete;
-    let n = 0;
+    let shouldRemove;
 
-    for (y = COURT_HEIGHT; y > 0; --y) {
-      complete = true;
+    for (let y = COURT_HEIGHT_IN_BLOCKS; y > 0; --y) {
+      shouldRemove = true;
 
-      for (x = 0; x < COURT_WIDTH; ++x) {
+      for (let x = 0; x < COURT_WIDTH_IN_BLOCKS; ++x) {
         if (!this.getBlockFromPosition(x, y)) {
-          complete = false;
+          shouldRemove = false;
         }
 
       }
 
-      if (complete) {
+      if (shouldRemove) {
         this.removeLine(y);
-        y = y + 1; // recheck same line
-        n++;
+        // recheck same line
+        y = y + 1;
       }
-    }
-
-    if (n > 0) {
-      this.trigger('scored', n);
-
-      // example scoring: 100*Math.pow(2, n-1)
-      // 1: 100, 2: 200, 3: 400, 4: 800
     }
   }
 
-  removeLine (top) {
-    let x;
-    let y;
-
-    for (y = top; y >= 0; --y) {
-      for (x = 0; x < COURT_WIDTH; ++x) {
-        this.placeBlock(x, y, (y === 0) ?
-          null : this.getBlockFromPosition(x, y - 1));
+  removeLine (fromTop) {
+    for (let y = fromTop; y >= 0; --y) {
+      for (let x = 0; x < COURT_WIDTH; ++x) {
+        this.moveBlock(x, y, (y === 0) ? null : this.getBlockFromPosition(x, y - 1));
       }
     }
   }
 
   update (delta) {
-    // this.rotateCurrent();
     if (!this.moveCurrent(DIRECTION.DOWN)) {
-      console.error('yay stop right there man!')
       this.placeFigure();
       this.handleLines();
-      this.setCurrentPiece();
+      this.setCurrentFigure();
     }
   }
-
-  getAllBlocks () {
-    const current = this.getCurrentBlocks();
-    const blocks = this.getPlacedBlocks();
-
-    if (current) {
-      return current.concat(blocks);
-    } else {
-      return blocks;
-    }
-
-  }
-
 }
 
 export default Tetris;

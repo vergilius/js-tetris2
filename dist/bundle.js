@@ -87,10 +87,19 @@ var DIRECTION = exports.DIRECTION = {
 };
 
 var BLOCK_SIZE = exports.BLOCK_SIZE = 25;
-var COURT_WIDTH = exports.COURT_WIDTH = 12 * BLOCK_SIZE;
-var COURT_HEIGHT = exports.COURT_HEIGHT = 20 * BLOCK_SIZE;
+var COURT_WIDTH_IN_BLOCKS = exports.COURT_WIDTH_IN_BLOCKS = 12;
+var COURT_HEIGHT_IN_BLOCKS = exports.COURT_HEIGHT_IN_BLOCKS = 20;
+var COURT_WIDTH = exports.COURT_WIDTH = COURT_WIDTH_IN_BLOCKS * BLOCK_SIZE;
+var COURT_HEIGHT = exports.COURT_HEIGHT = COURT_HEIGHT_IN_BLOCKS * BLOCK_SIZE;
 
 var FIGURES = exports.FIGURES = [{ type: 'i', positions: [0x00F0, 0x4444, 0x00F0, 0x4444], asset: 'block_blue' }, { type: 'j', positions: [0x44C0, 0x8E00, 0x6440, 0x0E20], asset: 'block_cyan' }, { type: 'l', positions: [0x4460, 0x0E80, 0xC440, 0x2E00], asset: 'block_green' }, { type: 'o', positions: [0xCC00, 0xCC00, 0xCC00, 0xCC00], asset: 'block_orange' }, { type: 's', positions: [0x06C0, 0x4620, 0x06C0, 0x4620], asset: 'block_purple' }, { type: 't', positions: [0x0E40, 0x4C40, 0x4E00, 0x4640], asset: 'block_red' }, { type: 'z', positions: [0x0C60, 0x2640, 0x0C60, 0x2640], asset: 'block_yellow' }];
+
+var KEY_MAP = exports.KEY_MAP = {
+  37: 'moveLeft',
+  38: 'rotate',
+  39: 'moveRight',
+  40: 'moveDown'
+};
 
 /***/ }),
 /* 1 */
@@ -130,21 +139,27 @@ var _figure = __webpack_require__(6);
 
 var _figure2 = _interopRequireDefault(_figure);
 
+var _block = __webpack_require__(5);
+
+var _block2 = _interopRequireDefault(_block);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Tetris = function () {
-  function Tetris(onElementAdd) {
+  function Tetris(_ref) {
+    var onElementAdd = _ref.onElementAdd,
+        onElementRemove = _ref.onElementRemove;
+
     _classCallCheck(this, Tetris);
 
     this._onElementAdd = onElementAdd;
-    this.currentPiece = null;
-    this.running = false;
+    this._onElementRemove = onElementRemove;
     this.blocks = {};
 
     this.listen();
-    this.setCurrentPiece();
+    this.setCurrentFigure();
   }
 
   _createClass(Tetris, [{
@@ -164,31 +179,33 @@ var Tetris = function () {
     }
   }, {
     key: 'placeAvailableFor',
-    value: function placeAvailableFor(current, x, y) {
+    value: function placeAvailableFor(current, nextX, nextY) {
+      var _this2 = this;
+
       var result = true;
 
-      current.checkPosition(x, y, function (x, y) {
+      current.checkPosition(nextX, nextY, function (x, y) {
         var width = x * _config.BLOCK_SIZE;
         var height = y * _config.BLOCK_SIZE;
 
-        if (width < 0 || width >= _config.COURT_WIDTH || height >= _config.COURT_HEIGHT || !!this.getBlockFromPosition(x, y)) {
-
+        if (width < 0 || width >= _config.COURT_WIDTH || height >= _config.COURT_HEIGHT || !!_this2.getBlockFromPosition(x, y)) {
           result = false;
         }
-      }.bind(this));
+      });
 
       return result;
     }
   }, {
     key: 'placeFigure',
     value: function placeFigure() {
-      var _this2 = this;
+      var _this3 = this;
 
       var current = this.getCurrent();
 
       current.getBlocks().getItems().forEach(function (block) {
-        return _this2.placeBlock(current, block);
+        return _this3.placeBlock(current, block);
       });
+      this._onElementRemove(current);
     }
   }, {
     key: 'getCurrent',
@@ -196,9 +213,10 @@ var Tetris = function () {
       return this.currentFigure;
     }
   }, {
-    key: 'setCurrentPiece',
-    value: function setCurrentPiece() {
-      var figure = _config.FIGURES[(0, _utils.random)(0, _config.FIGURES.length)];
+    key: 'setCurrentFigure',
+    value: function setCurrentFigure() {
+      var figure = _config.FIGURES[0];
+      // const figure = FIGURES[random(0, FIGURES.length)];
       this.currentFigure = new _figure2.default(0, -5, figure.positions, _config.DIRECTION.DOWN, figure.asset);
       this._onElementAdd(this.currentFigure);
     }
@@ -212,6 +230,21 @@ var Tetris = function () {
       return null;
     }
   }, {
+    key: 'moveBlock',
+    value: function moveBlock(x, y, blockFromAbove) {
+      if (!this.blocks[x]) {
+        this.blocks[x] = {};
+      }
+
+      if (this.blocks[x][y] && blockFromAbove) {
+        this.blocks[x][y].moveDown();
+        this.blocks[x][y] = blockFromAbove;
+      } else if (this.blocks[x][y]) {
+        this.blocks[x][y].remove();
+        this.blocks[x][y] = null;
+      }
+    }
+  }, {
     key: 'placeBlock',
     value: function placeBlock(figure, block) {
       var x = figure.getX() + block.getX();
@@ -221,36 +254,10 @@ var Tetris = function () {
         this.blocks[x] = {};
       }
 
-      this.blocks[x][y] = block;
-    }
-  }, {
-    key: 'getCurrentBlocks',
-    value: function getCurrentBlocks() {
-      var current = this.getCurrent();
-      var blocks = [];
+      var newBlock = new _block2.default(x, y, block.getAssetId());
+      this.blocks[x][y] = newBlock;
 
-      // current.forEachBlock(function (x, y, type) {
-      //   blocks.push(this.createBlock(x, y, type.color));
-      // }.bind(this));
-
-      return current.getBlocks().getItems();
-    }
-  }, {
-    key: 'getPlacedBlocks',
-    value: function getPlacedBlocks() {
-      // const block;
-      // const blocks = [];
-
-      // for (const y = 0; y < COURT_HEIGHT; y++) {
-      //   for (const x = 0; x < COURT_WIDTH; x++) {
-      //     block = this.getBlockFromPosition(x, y);
-      //     if (block) {
-      //       blocks.push(this.createBlock(x, y, block.color));
-      //     }
-      //   }
-      // }
-
-      return this.blocks;
+      this._onElementAdd(newBlock);
     }
   }, {
     key: 'rotateCurrent',
@@ -260,12 +267,6 @@ var Tetris = function () {
 
       // todo: change to array picking
       current.rotate(current.direction === _config.DIRECTION.MAX ? _config.DIRECTION.MIN : current.direction + 1);
-
-      // if (current) {
-      //   if (!this.placeAvailableFor(current, current.x, current.y)) {
-      //     current.rotate(prevRotation);
-      //   }
-      // }
     }
   }, {
     key: 'moveCurrent',
@@ -274,13 +275,10 @@ var Tetris = function () {
       var x = 0;
       var y = 1;
 
-      switch (direction) {
-        case _config.DIRECTION.RIGHT:
-          x = 1;
-          break;
-        case _config.DIRECTION.LEFT:
-          x = -1;
-          break;
+      if (direction === _config.DIRECTION.RIGHT) {
+        x = 1;
+      } else if (direction === _config.DIRECTION.RIGHT) {
+        x = -1;
       }
 
       if (this.placeAvailableFor(current, x, y)) {
@@ -299,67 +297,40 @@ var Tetris = function () {
   }, {
     key: 'handleLines',
     value: function handleLines() {
-      var x = void 0;
-      var y = void 0;
-      var complete = void 0;
-      var n = 0;
+      var shouldRemove = void 0;
 
-      for (y = _config.COURT_HEIGHT; y > 0; --y) {
-        complete = true;
+      for (var y = _config.COURT_HEIGHT_IN_BLOCKS; y > 0; --y) {
+        shouldRemove = true;
 
-        for (x = 0; x < _config.COURT_WIDTH; ++x) {
+        for (var x = 0; x < _config.COURT_WIDTH_IN_BLOCKS; ++x) {
           if (!this.getBlockFromPosition(x, y)) {
-            complete = false;
+            shouldRemove = false;
           }
         }
 
-        if (complete) {
+        if (shouldRemove) {
           this.removeLine(y);
-          y = y + 1; // recheck same line
-          n++;
+          // recheck same line
+          y = y + 1;
         }
-      }
-
-      if (n > 0) {
-        this.trigger('scored', n);
-
-        // example scoring: 100*Math.pow(2, n-1)
-        // 1: 100, 2: 200, 3: 400, 4: 800
       }
     }
   }, {
     key: 'removeLine',
-    value: function removeLine(top) {
-      var x = void 0;
-      var y = void 0;
-
-      for (y = top; y >= 0; --y) {
-        for (x = 0; x < _config.COURT_WIDTH; ++x) {
-          this.placeBlock(x, y, y === 0 ? null : this.getBlockFromPosition(x, y - 1));
+    value: function removeLine(fromTop) {
+      for (var y = fromTop; y >= 0; --y) {
+        for (var x = 0; x < _config.COURT_WIDTH; ++x) {
+          this.moveBlock(x, y, y === 0 ? null : this.getBlockFromPosition(x, y - 1));
         }
       }
     }
   }, {
     key: 'update',
     value: function update(delta) {
-      // this.rotateCurrent();
       if (!this.moveCurrent(_config.DIRECTION.DOWN)) {
-        console.error('yay stop right there man!');
         this.placeFigure();
         this.handleLines();
-        this.setCurrentPiece();
-      }
-    }
-  }, {
-    key: 'getAllBlocks',
-    value: function getAllBlocks() {
-      var current = this.getCurrentBlocks();
-      var blocks = this.getPlacedBlocks();
-
-      if (current) {
-        return current.concat(blocks);
-      } else {
-        return blocks;
+        this.setCurrentFigure();
       }
     }
   }]);
@@ -388,81 +359,51 @@ var _pubsub = __webpack_require__(13);
 
 var _pubsub2 = _interopRequireDefault(_pubsub);
 
-var _assets = __webpack_require__(7);
+var _config = __webpack_require__(0);
 
-var _time = __webpack_require__(8);
+var _pixi_helpers = __webpack_require__(15);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var _Tetris = void 0;
-var previous = 0;
-
-var KEY_MAP = {
-  37: 'moveLeft',
-  38: 'rotate',
-  39: 'moveRight',
-  40: 'moveDown'
-};
-
-var addChildRecursively = function addChildRecursively(scene, gameObject) {
-  if (gameObject.sprite) {
-    scene.addChild(gameObject.sprite);
-  } else if (typeof gameObject.getChildren === 'function') {
-    gameObject.getChildren().forEach(function (gameObject) {
-      return addChildRecursively(scene, gameObject);
-    });
-  }
-};
-
-var setup = function setup() {
+var start = function start() {
   var renderer = new _pixi2.default.CanvasRenderer(300, 500);
   var scene = new _pixi2.default.Container();
 
-  window.sc = scene;
+  var _Tetris = new _tetris2.default({
+    onElementAdd: function onElementAdd(gameObject) {
+      return (0, _pixi_helpers.addChildRecursively)(scene, gameObject);
+    },
+    onElementRemove: function onElementRemove(gameObject, replaceWith) {
+      if (gameObject.sprite) {
+        scene.removeChild(gameObject.sprite);
+      }
 
-  var _Tetris = new _tetris2.default(function (gameObject) {
-    addChildRecursively(scene, gameObject);
+      if (replaceWith) {
+        (0, _pixi_helpers.addChildRecursively)(scene, replaceWith);
+      }
+    }
   });
 
   window.addEventListener('keyup', function (event) {
-    var eventName = KEY_MAP[event.keyCode];
+    var eventName = _config.KEY_MAP[event.keyCode];
 
     if (eventName) {
-      console.log(_pubsub2.default, eventName);
       _pubsub2.default.trigger(eventName);
     }
   });
 
   document.querySelector('.js-container').appendChild(renderer.view);
-  gameLoop(renderer, scene, _Tetris);
+  (0, _pixi_helpers.gameLoop)(renderer, scene, _Tetris);
+  // it would actually make more sense to throttle rendering too -.-'
   setInterval(function () {
     return _Tetris.update();
-  }, 200);
+  }, 500);
 };
 
-var preloadAssets = function preloadAssets() {
-  _pixi2.default.loader.add((0, _assets.getAssets)().map(function (asset) {
-    return asset.path;
-  })).load(setup);
-};
-
-preloadAssets();
-
-function gameLoop(renderer, scene, _Tetris) {
-  // ah, actually I don't use delta time to animate anything :O
-  var time = (0, _time.getTime)(previous);
-  var delta = time.delta;
-
-  previous = time.previous;
-
-  requestAnimationFrame(function () {
-    return gameLoop(renderer, scene, _Tetris);
-  });
-
-  if (delta) {
-    renderer.render(scene);
-  }
-}
+// kick off
+(function () {
+  (0, _pixi_helpers.preloadAssets)(start);
+})();
 
 /***/ }),
 /* 4 */
@@ -479,8 +420,7 @@ var random = exports.random = function random(min, max) {
 };
 
 /***/ }),
-/* 5 */,
-/* 6 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -498,26 +438,39 @@ var _assets = __webpack_require__(7);
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var directions = [_config.DIRECTION.DOWN, _config.DIRECTION.LEFT, _config.DIRECTION.RIGHT, _config.DIRECTION.UP];
-
 var Block = function () {
   function Block(x, y, assetId) {
     _classCallCheck(this, Block);
 
-    this._baseX = x;
-    this._baseY = y;
-
-    this.sprite = (0, _assets.createSprite)(assetId);
-    this.sprite.x = x * _config.BLOCK_SIZE;
-    this.sprite.y = y * _config.BLOCK_SIZE;
-    this.sprite.width = _config.BLOCK_SIZE;
-    this.sprite.height = _config.BLOCK_SIZE;
+    this.setPosition(x, y);
+    this.assetId = assetId;
+    this.sprite = (0, _assets.createSprite)(this.assetId);
+    this.updateSize();
   }
 
   _createClass(Block, [{
+    key: 'getAssetId',
+    value: function getAssetId() {
+      return this.assetId;
+    }
+  }, {
+    key: 'updateSize',
+    value: function updateSize() {
+      this.sprite.x = this._baseX * _config.BLOCK_SIZE;
+      this.sprite.y = this._baseY * _config.BLOCK_SIZE;
+      this.sprite.width = _config.BLOCK_SIZE;
+      this.sprite.height = _config.BLOCK_SIZE;
+    }
+  }, {
     key: 'getSprite',
     value: function getSprite() {
       return this.sprite;
+    }
+  }, {
+    key: 'setPosition',
+    value: function setPosition(x, y) {
+      this._baseX = x;
+      this._baseY = y;
     }
   }, {
     key: 'getX',
@@ -529,64 +482,52 @@ var Block = function () {
     value: function getY() {
       return this._baseY;
     }
+  }, {
+    key: 'remove',
+    value: function remove() {
+      // well, this is troublesome (╯︵╰,)
+      // this.sprite.parent.removeChild(this.sprite);
+
+      this.sprite.visible = false;
+    }
+  }, {
+    key: 'moveDown',
+    value: function moveDown() {
+      this.setPosition(this.getX(), this.getY() + 1);
+    }
   }]);
 
   return Block;
 }();
 
-var Blocks = function () {
-  function Blocks(items, assetId) {
-    var _this = this;
+exports.default = Block;
 
-    _classCallCheck(this, Blocks);
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
 
-    this.items = this.build(items, assetId);
+"use strict";
 
-    this.sprite = (0, _assets.createSprite)();
-    this.items.forEach(function (block) {
-      return _this.sprite.addChild(block.getSprite());
-    });
-  }
 
-  _createClass(Blocks, [{
-    key: 'build',
-    value: function build(items, assetId) {
-      var blocks = [];
-      var bit = void 0;
-      var row = 0;
-      var col = 0;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 
-      // WATCH OUUUT! it's bitwise operator - RIGHT SHIFT
-      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Right_shift
-      for (bit = 0x8000; bit > 0; bit = bit >> 1) {
-        // WATCH OUUUT! it's bitwise operator - AND
-        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Bitwise_AND
-        if (items & bit) {
-          blocks.push(new Block(col, row, assetId));
-        }
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-        if (++col === 4) {
-          col = 0;
-          ++row;
-        }
-      }
+var _config = __webpack_require__(0);
 
-      return blocks;
-    }
-  }, {
-    key: 'getSprite',
-    value: function getSprite() {
-      return this.sprite;
-    }
-  }, {
-    key: 'getItems',
-    value: function getItems() {
-      return this.items;
-    }
-  }]);
+var _assets = __webpack_require__(7);
 
-  return Blocks;
-}();
+var _blocks = __webpack_require__(14);
+
+var _blocks2 = _interopRequireDefault(_blocks);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var directions = [_config.DIRECTION.DOWN, _config.DIRECTION.LEFT, _config.DIRECTION.RIGHT, _config.DIRECTION.UP];
 
 var Figure = function () {
   function Figure(x, y, blocks, direction, assetId) {
@@ -612,6 +553,23 @@ var Figure = function () {
     key: 'getY',
     value: function getY() {
       return this.y;
+    }
+  }, {
+    key: 'getBlockSprites',
+    value: function getBlockSprites() {
+      var _this = this;
+
+      var blocks = this.getBlocks();
+      var sprites = [];
+
+      blocks.getItems().forEach(function (block) {
+        var sprite = (0, _assets.createSprite)();
+        sprite.x = (_this.getX() + block.getX()) * _config.BLOCK_SIZE;
+        sprite.y = (_this.getY() + block.getY()) * _config.BLOCK_SIZE;
+        sprites.push(sprite);
+      });
+
+      return sprites;
     }
   }, {
     key: 'createSprite',
@@ -651,7 +609,7 @@ var Figure = function () {
       var blocks = {};
 
       directions.forEach(function (direction) {
-        blocks[direction] = new Blocks(_this3.blocksVariants[direction], assetId);
+        blocks[direction] = new _blocks2.default(_this3.blocksVariants[direction], assetId);
       });
 
       this.blocks = blocks;
@@ -726,32 +684,7 @@ var createSprite = exports.createSprite = function createSprite(name) {
 };
 
 /***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-var getTime = exports.getTime = function getTime() {
-  var previous = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
-
-  var delta = 0;
-  var now = +new Date();
-
-  if (previous) {
-    delta = (now - previous) / 1000;
-  }
-
-  return {
-    previous: now,
-    delta: delta
-  };
-};
-
-/***/ }),
+/* 8 */,
 /* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1291,6 +1224,133 @@ exports.default = {
   }
 };
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(11).setImmediate))
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _block = __webpack_require__(5);
+
+var _block2 = _interopRequireDefault(_block);
+
+var _assets = __webpack_require__(7);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Blocks = function () {
+  function Blocks(items, assetId) {
+    var _this = this;
+
+    _classCallCheck(this, Blocks);
+
+    this.items = this.build(items, assetId);
+
+    this.sprite = (0, _assets.createSprite)();
+    this.items.forEach(function (block) {
+      return _this.sprite.addChild(block.getSprite());
+    });
+  }
+
+  _createClass(Blocks, [{
+    key: 'build',
+    value: function build(items, assetId) {
+      var blocks = [];
+      var bit = void 0;
+      var row = 0;
+      var col = 0;
+
+      // WATCH OUUUT! it's bitwise operator - RIGHT SHIFT
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Right_shift
+      for (bit = 0x8000; bit > 0; bit = bit >> 1) {
+        // WATCH OUUUT! it's bitwise operator - AND
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators#Bitwise_AND
+        if (items & bit) {
+          blocks.push(new _block2.default(col, row, assetId));
+        }
+
+        if (++col === 4) {
+          col = 0;
+          ++row;
+        }
+      }
+
+      return blocks;
+    }
+  }, {
+    key: 'getSprite',
+    value: function getSprite() {
+      return this.sprite;
+    }
+  }, {
+    key: 'getItems',
+    value: function getItems() {
+      return this.items;
+    }
+  }]);
+
+  return Blocks;
+}();
+
+exports.default = Blocks;
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.addChildRecursively = exports.gameLoop = exports.preloadAssets = undefined;
+
+var _assets = __webpack_require__(7);
+
+// import {getTime} from './time';
+
+var preloadAssets = exports.preloadAssets = function preloadAssets(callback) {
+  PIXI.loader.add((0, _assets.getAssets)().map(function (asset) {
+    return asset.path;
+  })).load(callback);
+};
+
+// let previous = 0;
+var gameLoop = exports.gameLoop = function gameLoop(renderer, scene, _Tetris) {
+  // ah, actually I don't use delta time to animate anything :O
+  // const time = getTime(previous);
+  // const {delta} = time;
+  // previous = time.previous;
+
+  requestAnimationFrame(function () {
+    return gameLoop(renderer, scene, _Tetris);
+  });
+
+  // if (delta) {
+  renderer.render(scene);
+  // }
+};
+
+var addChildRecursively = exports.addChildRecursively = function addChildRecursively(scene, gameObject) {
+  if (gameObject.sprite) {
+    scene.addChild(gameObject.sprite);
+  } else if (typeof gameObject.getChildren === 'function') {
+    gameObject.getChildren().forEach(function (gameObject) {
+      return addChildRecursively(scene, gameObject);
+    });
+  }
+};
 
 /***/ })
 /******/ ]);
